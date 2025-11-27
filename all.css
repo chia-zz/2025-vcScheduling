@@ -43,18 +43,30 @@ body {
   min-height: 500px;
 }
 
+.calendar-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* 讓iOS滑動更順暢 */
+  margin: 20px 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+}
+
 .calendar {
   width: 100%;
+  min-width: 800px; /* 確保表格有最小寬度 */
   border-collapse: collapse;
-  margin-top: 20px;
+  margin: 0;
 }
 
 .calendar th {
   background-color: #ffd966;
   text-align: center;
-  padding: 10px;
+  padding: 12px 8px;
   border: 1px solid #ddd;
   font-weight: bold;
+  min-width: 100px;
 }
 
 .calendar td {
@@ -62,9 +74,56 @@ body {
   vertical-align: top;
   padding: 8px;
   height: 120px;
-  width: 14.28%;
+  min-width: 100px;
   cursor: pointer;
   transition: background-color 0.2s;
+}
+
+/* 手機版樣式優化 */
+@media (max-width: 768px) {
+  .calendar-container {
+    margin: 15px -15px; /* 讓容器延伸到邊緣 */
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .calendar th {
+    padding: 10px 6px;
+    font-size: 0.9em;
+  }
+
+  .calendar td {
+    height: 100px;
+    padding: 6px;
+    font-size: 0.8em;
+  }
+
+  .date-number {
+    font-size: 1em;
+    margin-bottom: 3px;
+  }
+
+  .shift-info {
+    font-size: 0.7em;
+    margin-bottom: 2px;
+    padding: 1px 3px;
+  }
+}
+
+/* 超小屏幕優化 */
+@media (max-width: 480px) {
+  .calendar td {
+    height: 90px;
+  }
+
+  .date-number {
+    font-size: 0.9em;
+  }
+
+  .shift-info {
+    font-size: 0.65em;
+  }
 }
 
 .calendar td:hover {
@@ -72,7 +131,7 @@ body {
 }
 
 .calendar .weekend {
-  background-color: #dbdbdb;
+  background-color: #ececec;
 }
 
 .calendar .holiday {
