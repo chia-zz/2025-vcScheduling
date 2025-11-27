@@ -87,7 +87,7 @@ let employees = {
   },
 };
 
-// 班别时间
+// 班别时间 - 更新兼職D的特殊時間
 const shiftTimes = {
   weekday: {
     day: { start: "10:30", end: "18:30", hours: 8 },
@@ -115,15 +115,7 @@ const staffingRequirements = {
 
 // 特殊日期数据
 let specialDatesData = {
-  // 格式: "2025-11": {
-  //   holidays: [],
-  //   closed: [],
-  //   adjusted: {
-  //     "11/7": { type: "no_night", description: "晚上18:30後提早打烊" },
-  //     "11/17": { type: "day_shift", start: "13:00", end: "18:30", hours: 5.5, description: "下午13:00才開門" },
-  //     "11/30": { type: "short_shift", start: "13:00", end: "16:00", hours: 3, description: "下午13:00才開門" }
-  //   }
-  // }
+  // 格式: "2025-11": { holidays: [], closed: [], adjusted: {} }
 };
 
 // 排班表数据
@@ -545,11 +537,9 @@ function generateCalendar() {
               let hours = shiftInfo.hours;
               let timeDisplay = `${shiftInfo.start}-${shiftInfo.end}`;
 
-              // 檢查是否有營業時間調整
-              const adjustedShift = getAdjustedShiftTime(dateStr, shiftType);
-              if (adjustedShift) {
-                hours = adjustedShift.hours;
-                timeDisplay = `${adjustedShift.start}-${adjustedShift.end}`;
+              if (specialDates.adjusted[dateStr]) {
+                // 这里可以根据具体调整修改时间和时数
+                // 例如：if (dateStr === '11/17' && shiftType === 'day') { ... }
               }
 
               calendarHTML += `
@@ -588,64 +578,6 @@ function generateCalendar() {
 
   // 生成统计信息
   generateStatistics();
-}
-
-// 獲取調整後的班次時間
-function getAdjustedShiftTime(dateStr, shiftType) {
-  const monthKey = `${currentMonth.year}-${currentMonth.month + 1}`;
-  const specialDates = specialDatesData[monthKey];
-
-  if (
-    !specialDates ||
-    !specialDates.adjusted ||
-    !specialDates.adjusted[dateStr]
-  ) {
-    return null;
-  }
-
-  const adjustment = specialDates.adjusted[dateStr];
-
-  // 根據調整類型返回相應的班次時間
-  switch (adjustment.type) {
-    case "no_night":
-      // 不需要晚班
-      if (shiftType === "night") {
-        return null;
-      }
-      break;
-    case "day_shift":
-      // 調整白天班時間
-      if (shiftType === "day") {
-        return {
-          start: adjustment.start,
-          end: adjustment.end,
-          hours: adjustment.hours,
-        };
-      }
-      break;
-    case "short_shift":
-      // 調整短班時間
-      if (shiftType === "short") {
-        return {
-          start: adjustment.start,
-          end: adjustment.end,
-          hours: adjustment.hours,
-        };
-      }
-      break;
-    case "custom":
-      // 自定義調整
-      if (shiftType === adjustment.shiftType) {
-        return {
-          start: adjustment.start,
-          end: adjustment.end,
-          hours: adjustment.hours,
-        };
-      }
-      break;
-  }
-
-  return null;
 }
 
 // 设置日历点击事件
@@ -702,24 +634,29 @@ function generateShiftOptions(isWeekend, date) {
 
   const shifts = isWeekend ? ["day", "short", "night"] : ["day", "night"];
 
+  // 特殊处理：某些日期不需要特定班次
+  // 例如：if (date === '11/7') { shifts.splice(shifts.indexOf('night'), 1); }
+
   shifts.forEach((shiftType) => {
     let shiftInfo = isWeekend
       ? shiftTimes.weekend[shiftType]
       : shiftTimes.weekday[shiftType];
 
-    // 檢查是否有營業時間調整
-    const adjustedShift = getAdjustedShiftTime(date, shiftType);
-    if (adjustedShift === null && shiftType === "night") {
-      // 如果晚班被取消，跳過這個班次
-      return;
-    }
-
+    // 檢查是否有員工有特殊班次時間（如兼職D）
     let hours = shiftInfo.hours;
     let timeDisplay = `${shiftInfo.start}-${shiftInfo.end}`;
 
-    if (adjustedShift) {
-      hours = adjustedShift.hours;
-      timeDisplay = `${adjustedShift.start}-${adjustedShift.end}`;
+    // 处理特殊调整
+    const monthKey = `${currentMonth.year}-${currentMonth.month + 1}`;
+    const specialDates = specialDatesData[monthKey] || {
+      holidays: [],
+      closed: [],
+      adjusted: {},
+    };
+
+    if (specialDates.adjusted[date]) {
+      // 这里可以根据具体调整修改时间和时数
+      // 例如：if (date === '11/17' && shiftType === 'day') { ... }
     }
 
     const shiftName = getShiftName(shiftType);
@@ -935,7 +872,7 @@ function validateSelection() {
 
   // 检查兼職F的每週晚班限制
   if (
-    currentEditState.employee === "F" &&
+    empId === "F" &&
     currentEditState.shiftType === "night" &&
     emp.maxNightShiftsPerWeek
   ) {
@@ -1052,18 +989,18 @@ function generateStatistics() {
 
             let hours = shiftInfo.hours;
 
-            // 檢查是否有營業時間調整
-            const adjustedShift = getAdjustedShiftTime(dateStr, shiftType);
-            if (adjustedShift) {
-              hours = adjustedShift.hours;
-            }
-
+            // 处理特殊调整
             const monthKey = `${currentMonth.year}-${currentMonth.month + 1}`;
             const specialDates = specialDatesData[monthKey] || {
               holidays: [],
               closed: [],
               adjusted: {},
             };
+
+            if (specialDates.adjusted[dateStr]) {
+              // 这里可以根据具体调整修改时数
+              // 例如：if (dateStr === '11/17' && shiftType === 'day') { hours = 5; }
+            }
 
             if (specialDates.holidays.includes(dateStr)) {
               holidayHours += hours;
@@ -1194,7 +1131,7 @@ function setupButtonEvents() {
   });
 
   document.getElementById("add-adjust").addEventListener("click", function () {
-    openAdjustModal();
+    addAdjust();
   });
 
   // 添加星期选择事件
@@ -1239,13 +1176,6 @@ function saveEditChanges() {
 
   if (!shiftType) {
     alert("請選擇班次");
-    return;
-  }
-
-  // 檢查是否有營業時間調整導致該班次被取消
-  const adjustedShift = getAdjustedShiftTime(date, shiftType);
-  if (adjustedShift === null) {
-    alert("該班次因營業時間調整已被取消，無法安排員工！");
     return;
   }
 
@@ -1308,11 +1238,8 @@ function autoGenerateSchedule() {
 
     // 为每个班别排班
     Object.keys(requirements).forEach((shiftType) => {
-      // 檢查是否有營業時間調整導致該班次被取消
-      const adjustedShift = getAdjustedShiftTime(dateStr, shiftType);
-      if (adjustedShift === null) {
-        return;
-      }
+      // 特殊处理：某些日期不需要特定班次
+      // 例如：if (dateStr === '11/7' && shiftType === 'night') { return; }
 
       // 获取可用的员工
       const availableEmployees = getAvailableEmployees(
@@ -1491,11 +1418,8 @@ function validateSchedule() {
       : staffingRequirements.weekday;
 
     Object.keys(requirements).forEach((shiftType) => {
-      // 檢查是否有營業時間調整導致該班次被取消
-      const adjustedShift = getAdjustedShiftTime(dateStr, shiftType);
-      if (adjustedShift === null) {
-        return; // 該班次被取消，不需要檢查
-      }
+      // 特殊处理：某些日期不需要特定班次
+      // 例如：if (dateStr === '11/7' && shiftType === 'night') { return; }
 
       const assignment = scheduleData[dateStr]
         ? scheduleData[dateStr][shiftType]
@@ -1828,31 +1752,10 @@ function updateSpecialDatesDisplay() {
   const adjustedList = document.getElementById("adjusted-list");
   if (Object.keys(specialDates.adjusted).length > 0) {
     adjustedList.innerHTML = Object.keys(specialDates.adjusted)
-      .map((date) => {
-        const adjustment = specialDates.adjusted[date];
-        let adjustmentText = "";
-
-        switch (adjustment.type) {
-          case "no_night":
-            adjustmentText = "取消晚班";
-            break;
-          case "day_shift":
-            adjustmentText = `白天班調整為 ${adjustment.start}-${adjustment.end} (${adjustment.hours}小時)`;
-            break;
-          case "short_shift":
-            adjustmentText = `短班調整為 ${adjustment.start}-${adjustment.end} (${adjustment.hours}小時)`;
-            break;
-          case "custom":
-            adjustmentText = `${getShiftName(adjustment.shiftType)}班調整為 ${
-              adjustment.start
-            }-${adjustment.end} (${adjustment.hours}小時)`;
-            break;
-          default:
-            adjustmentText = adjustment.description || "營業時間調整";
-        }
-
-        return `<div class="mb-1">${date}：${adjustmentText} <button class="btn btn-sm btn-outline-danger ms-2 remove-adjust" data-date="${date}">移除</button></div>`;
-      })
+      .map(
+        (date) =>
+          `<div class="mb-1">${date}：${specialDates.adjusted[date]} <button class="btn btn-sm btn-outline-danger ms-2 remove-adjust" data-date="${date}">移除</button></div>`
+      )
       .join("");
   } else {
     adjustedList.innerHTML = '<p class="text-muted">本月無調整營業時段</p>';
@@ -1959,170 +1862,15 @@ function removeClosed(date) {
   }
 }
 
-// 打开调整营业时间模态框
-function openAdjustModal() {
-  // 创建调整模态框
-  const modalHTML = `
-                <div class="modal-overlay" id="adjust-modal" style="display: flex;">
-                    <div class="edit-modal" style="max-width: 600px;">
-                        <h4>調整營業時間</h4>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">日期：</label>
-                            <input type="text" class="form-control" id="adjust-date" placeholder="例如：11/7">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">調整類型：</label>
-                            <select class="form-select" id="adjust-type">
-                                <option value="no_night">取消晚班</option>
-                                <option value="day_shift">調整白天班時間</option>
-                                <option value="short_shift">調整短班時間</option>
-                                <option value="custom">自定義調整</option>
-                            </select>
-                        </div>
-                        
-                        <div id="adjust-details">
-                            <!-- 动态显示调整详情 -->
-                        </div>
-                        
-                        <div class="d-flex justify-content-end mt-4">
-                            <button class="btn btn-outline-secondary me-2" id="cancel-adjust">取消</button>
-                            <button class="btn btn-primary" id="confirm-adjust">確認調整</button>
-                        </div>
-                    </div>
-                </div>
-            `;
+// 添加调整营业时段
+function addAdjust() {
+  const dateInput = document.getElementById("new-adjust-date");
+  const descInput = document.getElementById("new-adjust-desc");
+  const date = dateInput.value.trim();
+  const desc = descInput.value.trim();
 
-  // 添加模态框到页面
-  document.body.insertAdjacentHTML("beforeend", modalHTML);
-
-  // 设置调整类型变更事件
-  document
-    .getElementById("adjust-type")
-    .addEventListener("change", function () {
-      updateAdjustDetails();
-    });
-
-  // 初始化调整详情
-  updateAdjustDetails();
-
-  // 设置按钮事件
-  document
-    .getElementById("cancel-adjust")
-    .addEventListener("click", function () {
-      document.getElementById("adjust-modal").remove();
-    });
-
-  document
-    .getElementById("confirm-adjust")
-    .addEventListener("click", function () {
-      confirmAdjust();
-    });
-}
-
-// 更新调整详情
-function updateAdjustDetails() {
-  const adjustType = document.getElementById("adjust-type").value;
-  const detailsContainer = document.getElementById("adjust-details");
-
-  let detailsHTML = "";
-
-  switch (adjustType) {
-    case "no_night":
-      detailsHTML = `
-                        <div class="mb-3">
-                            <label class="form-label">說明：</label>
-                            <input type="text" class="form-control" id="adjust-desc" value="晚上18:30後提早打烊" placeholder="調整說明">
-                        </div>
-                    `;
-      break;
-    case "day_shift":
-      detailsHTML = `
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">開始時間：</label>
-                                <input type="text" class="form-control" id="adjust-start" value="13:00" placeholder="例如：13:00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">結束時間：</label>
-                                <input type="text" class="form-control" id="adjust-end" value="18:30" placeholder="例如：18:30">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">時數：</label>
-                            <input type="number" class="form-control" id="adjust-hours" value="5.5" step="0.5" placeholder="時數">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">說明：</label>
-                            <input type="text" class="form-control" id="adjust-desc" value="下午13:00才開門" placeholder="調整說明">
-                        </div>
-                    `;
-      break;
-    case "short_shift":
-      detailsHTML = `
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">開始時間：</label>
-                                <input type="text" class="form-control" id="adjust-start" value="13:00" placeholder="例如：13:00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">結束時間：</label>
-                                <input type="text" class="form-control" id="adjust-end" value="16:00" placeholder="例如：16:00">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">時數：</label>
-                            <input type="number" class="form-control" id="adjust-hours" value="3" step="0.5" placeholder="時數">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">說明：</label>
-                            <input type="text" class="form-control" id="adjust-desc" value="下午13:00才開門" placeholder="調整說明">
-                        </div>
-                    `;
-      break;
-    case "custom":
-      detailsHTML = `
-                        <div class="mb-3">
-                            <label class="form-label">調整班次：</label>
-                            <select class="form-select" id="adjust-shift-type">
-                                <option value="day">白天班</option>
-                                <option value="night">晚班</option>
-                                <option value="short">短班</option>
-                            </select>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">開始時間：</label>
-                                <input type="text" class="form-control" id="adjust-start" placeholder="例如：13:00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">結束時間：</label>
-                                <input type="text" class="form-control" id="adjust-end" placeholder="例如：18:30">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">時數：</label>
-                            <input type="number" class="form-control" id="adjust-hours" step="0.5" placeholder="時數">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">說明：</label>
-                            <input type="text" class="form-control" id="adjust-desc" placeholder="調整說明">
-                        </div>
-                    `;
-      break;
-  }
-
-  detailsContainer.innerHTML = detailsHTML;
-}
-
-// 确认调整
-function confirmAdjust() {
-  const date = document.getElementById("adjust-date").value.trim();
-  const adjustType = document.getElementById("adjust-type").value;
-
-  if (!date) {
-    alert("請輸入日期！");
+  if (!date || !desc) {
+    alert("請輸入日期和調整說明！");
     return;
   }
 
@@ -2133,55 +1881,10 @@ function confirmAdjust() {
     specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 
-  let adjustment = { type: adjustType };
-
-  switch (adjustType) {
-    case "no_night":
-      adjustment.description =
-        document.getElementById("adjust-desc").value || "晚上18:30後提早打烊";
-      break;
-    case "day_shift":
-      adjustment.start = document.getElementById("adjust-start").value;
-      adjustment.end = document.getElementById("adjust-end").value;
-      adjustment.hours = parseFloat(
-        document.getElementById("adjust-hours").value
-      );
-      adjustment.description =
-        document.getElementById("adjust-desc").value || "下午13:00才開門";
-      break;
-    case "short_shift":
-      adjustment.start = document.getElementById("adjust-start").value;
-      adjustment.end = document.getElementById("adjust-end").value;
-      adjustment.hours = parseFloat(
-        document.getElementById("adjust-hours").value
-      );
-      adjustment.description =
-        document.getElementById("adjust-desc").value || "下午13:00才開門";
-      break;
-    case "custom":
-      adjustment.shiftType = document.getElementById("adjust-shift-type").value;
-      adjustment.start = document.getElementById("adjust-start").value;
-      adjustment.end = document.getElementById("adjust-end").value;
-      adjustment.hours = parseFloat(
-        document.getElementById("adjust-hours").value
-      );
-      adjustment.description =
-        document.getElementById("adjust-desc").value || "營業時間調整";
-      break;
-  }
-
-  specialDatesData[monthKey].adjusted[date] = adjustment;
-
-  // 移除模态框
-  document.getElementById("adjust-modal").remove();
-
-  // 更新显示
+  specialDatesData[monthKey].adjusted[date] = desc;
+  dateInput.value = "";
+  descInput.value = "";
   updateSpecialDatesDisplay();
-
-  // 重新生成日历以反映调整
-  generateCalendar();
-
-  alert("營業時間調整已儲存！");
 }
 
 // 移除调整营业时段
@@ -2192,7 +1895,6 @@ function removeAdjust(date) {
   if (specialDatesData[monthKey] && specialDatesData[monthKey].adjusted[date]) {
     delete specialDatesData[monthKey].adjusted[date];
     updateSpecialDatesDisplay();
-    generateCalendar(); // 重新生成日历
   }
 }
 
