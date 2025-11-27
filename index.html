@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>員工排班管理系统</title>
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj9kSNceina_CNAyuGeBaBNH52KLbs_amIJSEG6GeI7yNX3MMNufAWW3dSf3Vphpe0Sq4mN2nF9Pw0QIPkvM-Xnim8T4AWumBZ5R8oaTjetttiD6gGug9bnGddsvnS9Mnnem-c4DCfdaEZ1/s200/coffee07_cafe_macchiato.png"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="all.css" />
+  </head>
+  <body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="#">
+          <img
+            src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg2KMKU0W838JuLodAxZSjR7cEBuXVWKWDE9MLcfngBCoaPq4SMeAjSwR6dWwySB46C9CZ22hjwm484hQ5llwJGyAkhIsXS-5Ucd1RO9htm56WjfOh-8_pwYx2MLONkKVSmaz4RZVW5fkU/s800/syokuji8_coffeetime.png"
+            alt="Coffee Time Logo"
+          />
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" id="schedule-tab"
+                >📋 排班表</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" id="rules-tab">⚙️ 規則設定</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" id="special-tab">🎉 特殊日期</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" id="history-tab">📚 歷史紀錄</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <!-- 月份选择器 -->
+      <div class="month-selector">
+        <label for="month-select" class="form-label"
+          ><strong>選擇月份：</strong></label
+        >
+        <select class="form-select" id="month-select" style="width: 150px">
+          <!-- 月份选项将通过JavaScript动态生成 -->
+        </select>
+        <button class="btn btn-outline-primary" id="add-month">
+          ＋ 新增月份
+        </button>
+      </div>
+
+      <!-- 快速操作按钮 -->
+      <div class="d-flex flex-wrap justify-content-between mb-4">
+        <div class="btn-group">
+          <button class="btn btn-primary" id="auto-generate">
+            🤖 自動生成
+          </button>
+          <button class="btn btn-outline-primary" id="validate-schedule">
+            ✓ 驗證班表
+          </button>
+          <button class="btn btn-outline-primary" id="check-continuous">
+            🔍 檢查連續上班
+          </button>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-success" id="export-image">
+            📸 匯出月曆圖
+          </button>
+          <button class="btn btn-outline-success" id="save-schedule">
+            💾 儲存
+          </button>
+          <button class="btn btn-outline-success" id="load-schedule">
+            📂 載入
+          </button>
+        </div>
+      </div>
+
+      <!-- 分页内容 -->
+      <div class="tab-content" id="tab-content">
+        <!-- 排班表分页 -->
+        <div class="tab-pane fade show active" id="schedule">
+          <h2 class="mb-4" id="schedule-title">2025年11月排班表</h2>
+          <div class="alert alert-info">
+            <strong>提示：</strong>
+            點擊排班表中的任何格子可以手動編輯該日期的班次安排。
+          </div>
+          <div id="calendar-container"></div>
+
+          <!-- 统计信息 -->
+          <div class="row mt-4" id="statistics">
+            <div class="col-md-6">
+              <div class="stats-card">
+                <h5>正職員工統計</h5>
+                <div id="fulltime-stats"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="stats-card">
+                <h5>兼職員工統計</h5>
+                <div id="parttime-stats"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 规则设定分页 -->
+        <div class="tab-pane fade" id="rules">
+          <h2 class="mb-4">員工排班規則設定</h2>
+          <div id="employee-rules">
+            <!-- 员工规则将通过JavaScript动态生成 -->
+          </div>
+          <div class="mt-4">
+            <button class="btn btn-primary" id="add-employee">
+              ＋ 新增員工
+            </button>
+            <button class="btn btn-success" id="save-rules">儲存規則</button>
+          </div>
+        </div>
+
+        <!-- 特殊日期分页 -->
+        <div class="tab-pane fade" id="special">
+          <h2 class="mb-4">特殊日期設定</h2>
+          <div class="mb-3">
+            <label class="form-label">選擇月份：</label>
+            <select class="form-select" id="special-month-select">
+              <!-- 月份选项将通过JavaScript动态生成 -->
+            </select>
+          </div>
+          <div class="form-section">
+            <h5>國定假日</h5>
+            <div id="holidays-list"></div>
+            <div class="mb-3">
+              <label class="form-label">新增國定假日：</label>
+              <input
+                type="text"
+                class="form-control"
+                id="new-holiday"
+                placeholder="例如：11/15"
+              />
+              <button
+                class="btn btn-sm btn-outline-primary mt-2"
+                id="add-holiday"
+              >
+                新增
+              </button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h5>全天公休</h5>
+            <div id="closed-list"></div>
+            <div class="mb-3">
+              <label class="form-label">新增公休日：</label>
+              <input
+                type="text"
+                class="form-control"
+                id="new-closed"
+                placeholder="例如：11/20"
+              />
+              <button
+                class="btn btn-sm btn-outline-primary mt-2"
+                id="add-closed"
+              >
+                新增
+              </button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h5>調整營業時段</h5>
+            <div id="adjusted-list"></div>
+            <div class="mb-3">
+              <label class="form-label">新增調整營業時段：</label>
+              <input
+                type="text"
+                class="form-control mb-2"
+                id="new-adjust-date"
+                placeholder="日期，例如：11/25"
+              />
+              <textarea
+                class="form-control"
+                id="new-adjust-desc"
+                placeholder="調整說明"
+              ></textarea>
+              <button
+                class="btn btn-sm btn-outline-primary mt-2"
+                id="add-adjust"
+              >
+                新增
+              </button>
+            </div>
+          </div>
+
+          <button class="btn btn-success mt-3" id="save-special">
+            儲存特殊日期
+          </button>
+        </div>
+
+        <!-- 历史纪录分页 -->
+        <div class="tab-pane fade" id="history">
+          <h2 class="mb-4">歷史排班紀錄</h2>
+          <div class="mb-3">
+            <select class="form-select" id="history-select">
+              <option value="">選擇月份...</option>
+            </select>
+          </div>
+          <div id="history-content">
+            <p class="text-muted">選擇月份以查看歷史排班紀錄</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 編輯排班模態框 -->
+    <div class="modal-overlay" id="edit-modal" style="display: none">
+      <div class="edit-modal">
+        <h4 id="edit-date-title">編輯排班</h4>
+        <p id="edit-date-info"></p>
+
+        <div class="mb-3">
+          <label class="form-label">選擇班次：</label>
+          <div id="shift-options" class="edit-options">
+            <!-- 班次選項將由JavaScript動態生成 -->
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">選擇員工：</label>
+          <div id="employee-options" class="edit-options">
+            <!-- 員工選項將由JavaScript動態生成 -->
+          </div>
+        </div>
+
+        <div id="validation-message" class="validation-error"></div>
+
+        <div class="d-flex justify-content-end mt-4">
+          <button class="btn btn-outline-secondary me-2" id="cancel-edit">
+            取消
+          </button>
+          <button class="btn btn-primary" id="save-edit">儲存變更</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增月份模態框 -->
+    <div class="modal-overlay" id="add-month-modal" style="display: none">
+      <div class="edit-modal">
+        <h4>新增月份排班表</h4>
+
+        <div class="mb-3">
+          <label class="form-label">選擇年份：</label>
+          <select class="form-select" id="new-year">
+            <!-- 年份選項將由JavaScript動態生成 -->
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">選擇月份：</label>
+          <select class="form-select" id="new-month">
+            <option value="0">1月</option>
+            <option value="1">2月</option>
+            <option value="2">3月</option>
+            <option value="3">4月</option>
+            <option value="4">5月</option>
+            <option value="5">6月</option>
+            <option value="6">7月</option>
+            <option value="7">8月</option>
+            <option value="8">9月</option>
+            <option value="9">10月</option>
+            <option value="10">11月</option>
+            <option value="11">12月</option>
+          </select>
+        </div>
+
+        <div class="d-flex justify-content-end mt-4">
+          <button class="btn btn-outline-secondary me-2" id="cancel-add-month">
+            取消
+          </button>
+          <button class="btn btn-primary" id="confirm-add-month">
+            確認新增
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="all.js"></script>
+  </body>
+</html>
