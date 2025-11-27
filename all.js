@@ -31,7 +31,7 @@ let employees = {
     fixedDaysOff: [3, 4], // 周三、周四
     unavailableDates: ["11/10", "11/11", "11/12", "11/13", "11/14"], // 11/10-11/14出國排休
     preferredShifts: ["day"],
-    color: "#FFC0CB",
+    color: "#ffc0cb",
   },
   B: {
     name: "兼職B",
@@ -39,30 +39,34 @@ let employees = {
     fixedDaysOff: [0, 1], // 周日、周一
     unavailableDates: ["11/26"],
     preferredShifts: ["day"],
-    color: "#90EE90",
+    color: "#ace9ac",
   },
   C: {
     name: "兼職C",
     type: "parttime",
     fixedDaysOff: [],
-    unavailableDates: [],
+    unavailableDates: ["11/16", "11/17"], // 11/16.17不行
     specialDates: {
-      "11/13": ["night"],
+      "11/13": ["night"], // 11/13.14只能晚上
       "11/14": ["night"],
-      "11/16": [],
-      "11/17": [],
     },
-    preferredShifts: ["night"],
-    color: "#FFEE99",
+    preferredShifts: ["night"], // 以晚班為主
+    color: "#f4dd6d",
   },
   D: {
     name: "兼職D",
     type: "parttime",
     fixedDaysOff: [],
     unavailableDates: [],
-    availableDates: ["11/8", "11/22", "11/29"],
+    availableDates: ["11/8", "11/22", "11/29"], // 只有這些日期可以上晚班
     preferredShifts: ["night"],
-    color: "#1E90FF",
+    color: "#4db3f3",
+    // 特殊班次時間
+    specialShiftTimes: {
+      weekend: {
+        night: { start: "16:45", end: "24:15", hours: 7.5 },
+      },
+    },
   },
   E: {
     name: "兼職E",
@@ -70,7 +74,7 @@ let employees = {
     fixedDaysOff: [],
     unavailableDates: ["11/4", "11/14", "11/20", "11/21", "11/23"],
     preferredShifts: ["day", "short"],
-    color: "#9F88FF",
+    color: "#b9aaf5",
   },
   F: {
     name: "兼職F",
@@ -78,11 +82,12 @@ let employees = {
     fixedDaysOff: [],
     unavailableDates: ["11/1", "11/2", "11/10", "11/11", "11/21", "11/22"],
     preferredShifts: ["night", "short"],
-    color: "#FFDDAA",
+    color: "#ffc080",
+    maxNightShiftsPerWeek: 2, // 一週最多排兩天晚班
   },
 };
 
-// 班别时间
+// 班别时间 - 更新兼職D的特殊時間
 const shiftTimes = {
   weekday: {
     day: { start: "10:30", end: "18:30", hours: 8 },
@@ -514,9 +519,19 @@ function generateCalendar() {
             const assignment = scheduleData[dateStr][shiftType];
             if (assignment) {
               const emp = employees[assignment.employee];
-              const shiftInfo = isWeekend
+              let shiftInfo = isWeekend
                 ? shiftTimes.weekend[shiftType]
                 : shiftTimes.weekday[shiftType];
+
+              // 處理兼職D的特殊班次時間
+              if (
+                assignment.employee === "D" &&
+                isWeekend &&
+                shiftType === "night" &&
+                emp.specialShiftTimes
+              ) {
+                shiftInfo = emp.specialShiftTimes.weekend.night;
+              }
 
               // 处理特殊调整
               let hours = shiftInfo.hours;
@@ -623,10 +638,11 @@ function generateShiftOptions(isWeekend, date) {
   // 例如：if (date === '11/7') { shifts.splice(shifts.indexOf('night'), 1); }
 
   shifts.forEach((shiftType) => {
-    const shiftInfo = isWeekend
+    let shiftInfo = isWeekend
       ? shiftTimes.weekend[shiftType]
       : shiftTimes.weekday[shiftType];
 
+    // 檢查是否有員工有特殊班次時間（如兼職D）
     let hours = shiftInfo.hours;
     let timeDisplay = `${shiftInfo.start}-${shiftInfo.end}`;
 
@@ -854,6 +870,18 @@ function validateSelection() {
     return;
   }
 
+  // 检查兼職F的每週晚班限制
+  if (
+    empId === "F" &&
+    currentEditState.shiftType === "night" &&
+    emp.maxNightShiftsPerWeek
+  ) {
+    if (!checkWeeklyNightShiftLimit("F", dateNum)) {
+      messageEl.textContent = `⚠️ ${emp.name} 本週已達到晚班上限 (${emp.maxNightShiftsPerWeek}天)`;
+      return;
+    }
+  }
+
   // 如果通过所有检查
   messageEl.textContent = "✓ 選擇符合規則";
   messageEl.style.color = "green";
@@ -945,9 +973,19 @@ function generateStatistics() {
                 currentMonth.month,
                 dateNum
               ).getDay() === 6;
-            const shiftInfo = isWeekend
+            let shiftInfo = isWeekend
               ? shiftTimes.weekend[shiftType]
               : shiftTimes.weekday[shiftType];
+
+            // 處理兼職D的特殊班次時間
+            if (
+              empId === "D" &&
+              isWeekend &&
+              shiftType === "night" &&
+              emp.specialShiftTimes
+            ) {
+              shiftInfo = emp.specialShiftTimes.weekend.night;
+            }
 
             let hours = shiftInfo.hours;
 
@@ -1224,18 +1262,30 @@ function autoGenerateSchedule() {
             selectedEmployee = availableEmployees[0];
           }
         }
-        // 晚班优先排C和F
+        // 晚班优先排D（如果他有班），其次C和F
         else if (shiftType === "night") {
           const nightPreferred = availableEmployees.filter((emp) =>
             employees[emp].preferredShifts.includes("night")
           );
 
           if (nightPreferred.length > 0) {
-            // 优先选择C和F
-            if (nightPreferred.includes("C")) {
+            // 优先选择D（如果他有班）
+            if (nightPreferred.includes("D")) {
+              selectedEmployee = "D";
+            } else if (nightPreferred.includes("C")) {
               selectedEmployee = "C";
             } else if (nightPreferred.includes("F")) {
-              selectedEmployee = "F";
+              // 检查兼職F的每週晚班限制
+              if (checkWeeklyNightShiftLimit("F", date)) {
+                selectedEmployee = "F";
+              } else {
+                // 如果F已达到限制，选择其他可用员工
+                const otherEmployees = nightPreferred.filter(
+                  (emp) => emp !== "F"
+                );
+                selectedEmployee =
+                  otherEmployees.length > 0 ? otherEmployees[0] : null;
+              }
             } else {
               selectedEmployee = nightPreferred[0];
             }
@@ -1305,6 +1355,42 @@ function getAvailableEmployees(dateStr, dayOfWeek, shiftType) {
   });
 
   return available;
+}
+
+// 新增函數：檢查兼職F的每週晚班限制
+function checkWeeklyNightShiftLimit(empId, date) {
+  const emp = employees[empId];
+  if (!emp.maxNightShiftsPerWeek) return true; // 如果沒有限制，返回true
+
+  const dateNum = parseInt(date);
+  const weekStart = getWeekStartDate(dateNum);
+  const weekEnd = weekStart + 6;
+
+  let nightShiftCount = 0;
+
+  // 計算本週已安排的晚班數量
+  for (let d = weekStart; d <= weekEnd && d <= 31; d++) {
+    const checkDateStr = `${currentMonth.month + 1}/${d}`;
+    if (scheduleData[checkDateStr] && scheduleData[checkDateStr]["night"]) {
+      if (scheduleData[checkDateStr]["night"].employee === empId) {
+        nightShiftCount++;
+      }
+    }
+  }
+
+  return nightShiftCount < emp.maxNightShiftsPerWeek;
+}
+
+// 新增函數：獲取週起始日期
+function getWeekStartDate(date) {
+  const dayOfWeek = new Date(
+    currentMonth.year,
+    currentMonth.month,
+    date
+  ).getDay();
+  // 週一為起始日
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  return date + mondayOffset;
 }
 
 // 验证班表
@@ -1492,11 +1578,7 @@ function loadSpecialDatesForMonth() {
     specialDatesData[monthKey] = JSON.parse(savedSpecialDates);
   } else {
     // 如果没有保存的特殊日期，初始化为空
-    specialDatesData[monthKey] = {
-      holidays: [],
-      closed: [],
-      adjusted: {},
-    };
+    specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 }
 
@@ -1527,12 +1609,12 @@ function addNewEmployee() {
 // 获取随机颜色
 function getRandomColor() {
   const colors = [
-    "#FFC0CB",
-    "#90EE90",
-    "#FFEE99",
-    "#1E90FF",
-    "#9F88FF",
-    "#FFDDAA",
+    "#ffc0cb",
+    "#ace9ac",
+    "#f4dd6d",
+    "#4db3f3",
+    "#b9aaf5",
+    "#ffc080",
     "#FFB6C1",
     "#98FB98",
     "#FFFACD",
@@ -1635,11 +1717,7 @@ function updateSpecialDatesDisplay() {
 
   // 确保特殊日期数据存在
   if (!specialDatesData[monthKey]) {
-    specialDatesData[monthKey] = {
-      holidays: [],
-      closed: [],
-      adjusted: {},
-    };
+    specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 
   const specialDates = specialDatesData[monthKey];
@@ -1720,11 +1798,7 @@ function addHoliday() {
   const monthKey = specialMonthSelect.value;
 
   if (!specialDatesData[monthKey]) {
-    specialDatesData[monthKey] = {
-      holidays: [],
-      closed: [],
-      adjusted: {},
-    };
+    specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 
   if (!specialDatesData[monthKey].holidays.includes(date)) {
@@ -1763,11 +1837,7 @@ function addClosed() {
   const monthKey = specialMonthSelect.value;
 
   if (!specialDatesData[monthKey]) {
-    specialDatesData[monthKey] = {
-      holidays: [],
-      closed: [],
-      adjusted: {},
-    };
+    specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 
   if (!specialDatesData[monthKey].closed.includes(date)) {
@@ -1808,11 +1878,7 @@ function addAdjust() {
   const monthKey = specialMonthSelect.value;
 
   if (!specialDatesData[monthKey]) {
-    specialDatesData[monthKey] = {
-      holidays: [],
-      closed: [],
-      adjusted: {},
-    };
+    specialDatesData[monthKey] = { holidays: [], closed: [], adjusted: {} };
   }
 
   specialDatesData[monthKey].adjusted[date] = desc;
